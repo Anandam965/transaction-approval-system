@@ -485,66 +485,112 @@ def admin_page():
                             st.rerun()
     with tab4:
 
-        st.subheader("Approved Transactions (Admin Access)")
+        st.subheader("All Transactions (Admin Control)")
 
         res = requests.get(
-            SUPABASE_URL + "/rest/v1/transactions?status=eq.Approved",
+            SUPABASE_URL + "/rest/v1/transactions",
             headers=HEADERS
         )
 
         df = pd.DataFrame(res.json())
 
         if df.empty:
-            st.info("No Approved Transactions Found")
+            st.info("No Transactions Found")
 
         else:
+
             # DISPLAY TABLE
-            st.dataframe(df)
+            st.dataframe(df.style.apply(highlight_status, axis=1))
 
             st.markdown("---")
-            st.subheader("Edit / Delete Approved Transactions")
+            st.subheader("Edit / Update Transactions")
 
-            # ACTION PANEL
             for _, row in df.iterrows():
 
-                with st.expander(f"TX ID {row['id']} | {row['username']} | ₹{row['amount']}"):
+                status = row["status"]
 
-                    col1, col2, col3 = st.columns(3)
+                # ---------- STATUS COLORS ----------
+                if status == "Approved":
+                    bg = "#d4f8d4"
+                    label = "🟢 APPROVED"
+
+                elif status == "Pending":
+                    bg = "#fff3cd"
+                    label = "🟡 PENDING"
+
+                else:
+                    bg = "#f8d7da"
+                    label = "🔴 REJECTED"
+
+                # ---------- COLORED HEADER BAR ----------
+                st.markdown(
+                    f"""
+                    <div style="
+                        background-color:{bg};
+                        padding:12px;
+                        border-radius:8px;
+                        margin-bottom:6px;
+                        font-weight:600;
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                    ">
+                        <span>
+                        TX ID {row['id']} | {row['username']} | ₹{row['amount']}
+                        </span>
+
+                        {label}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                # ---------- EDIT PANEL ----------
+                with st.expander("✏ Edit Transaction"):
+
+                    col1, col2 = st.columns(2)
 
                     with col1:
                         new_amount = st.number_input(
-                            "Edit Amount",
+                            "Amount",
                             value=float(row["amount"]),
-                            key=f"amt_ap_{row['id']}"
+                            key=f"amt_{row['id']}"
+                        )
+
+                        new_card = st.selectbox(
+                            "Card",
+                            ["Rupay", "Master", "Other"],
+                            index=["Rupay","Master","Other"].index(row["card_name"]),
+                            key=f"card_{row['id']}"
                         )
 
                     with col2:
                         new_purpose = st.text_input(
-                            "Edit Purpose",
+                            "Purpose",
                             value=row["purpose"],
-                            key=f"pur_ap_{row['id']}"
+                            key=f"pur_{row['id']}"
                         )
 
-                    with col3:
-                        new_card = st.selectbox(
-                            "Edit Card",
-                            ["Rupay", "Master", "Other"],
-                            index=["Rupay","Master","Other"].index(row["card_name"]),
-                            key=f"card_ap_{row['id']}"
+                        new_status = st.selectbox(
+                            "Status",
+                            ["Pending", "Approved", "Rejected"],
+                            index=["Pending","Approved","Rejected"].index(row["status"]),
+                            key=f"status_{row['id']}"
                         )
 
                     b1, b2 = st.columns(2)
 
                     # ---------- UPDATE ----------
-                    if b1.button("✅ Update", key=f"update_ap_{row['id']}"):
+                    if b1.button("✅ Update", key=f"upd_{row['id']}"):
 
                         requests.patch(
-                            SUPABASE_URL + "/rest/v1/transactions?id=eq." + str(row["id"]),
+                            SUPABASE_URL + "/rest/v1/transactions?id=eq."+str(row["id"]),
                             headers=HEADERS,
                             json={
                                 "amount": new_amount,
                                 "purpose": new_purpose,
-                                "card_name": new_card
+                                "card_name": new_card,
+                                "status": new_status
                             }
                         )
 
@@ -552,15 +598,16 @@ def admin_page():
                         st.rerun()
 
                     # ---------- DELETE ----------
-                    if b2.button("🗑 Delete", key=f"delete_ap_{row['id']}"):
+                    if b2.button("🗑 Delete", key=f"del_{row['id']}"):
 
                         requests.delete(
-                            SUPABASE_URL + "/rest/v1/transactions?id=eq." + str(row["id"]),
+                            SUPABASE_URL + "/rest/v1/transactions?id=eq."+str(row["id"]),
                             headers=HEADERS
                         )
 
                         st.error("Transaction Deleted")
                         st.rerun()
+         
 # ---------------- LOGOUT ----------------
 def logout():
     st.session_state.user = None
