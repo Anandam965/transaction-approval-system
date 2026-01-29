@@ -286,17 +286,20 @@ def customer_page():
         st.subheader("Approved Transactions")
         st.dataframe(df.style.apply(highlight_status, axis=1))
 
-        total = df["amount"].sum()
+        approved_df = df[df["status"] == "Approved"]
+
+        total = approved_df["amount"].sum()
         due = df["due_date"].iloc[0]
 
         st.success(f"Total Bill Amount : ₹ {total}")
         st.warning(f"Bill Due Date : {due}")
-
-        st.subheader("Spending Graph")
-        st.bar_chart(df.set_index("trans_date")["amount"])
-
         if st.button("Download Bill PDF"):
-            pdf = generate_pdf(st.session_state.user, df, due, total)
+            approved_df = df[df["status"] == "Approved"]
+
+            total = approved_df["amount"].sum()
+
+            pdf = generate_pdf(username, approved_df, due, total)
+            
 
             with open(pdf, "rb") as f:
                 st.download_button("Download PDF", f, file_name=pdf)
@@ -311,7 +314,7 @@ def admin_page():
     tab1, tab2, tab3, tab4 = st.tabs([
     "User Approvals",
     "Transaction Approvals",
-    "User Management",
+    "Approved Transactions",
     "Analytics"
     ])
     # -------- USER APPROVAL --------
@@ -480,7 +483,84 @@ def admin_page():
 
                             st.warning("User Deleted")
                             st.rerun()
+    with tab4:
 
+        st.subheader("Approved Transactions (Admin Access)")
+
+        res = requests.get(
+            SUPABASE_URL + "/rest/v1/transactions?status=eq.Approved",
+            headers=HEADERS
+        )
+
+        df = pd.DataFrame(res.json())
+
+        if df.empty:
+            st.info("No Approved Transactions Found")
+
+        else:
+            # DISPLAY TABLE
+            st.dataframe(df)
+
+            st.markdown("---")
+            st.subheader("Edit / Delete Approved Transactions")
+
+            # ACTION PANEL
+            for _, row in df.iterrows():
+
+                with st.expander(f"TX ID {row['id']} | {row['username']} | ₹{row['amount']}"):
+
+                    col1, col2, col3 = st.columns(3)
+
+                    with col1:
+                        new_amount = st.number_input(
+                            "Edit Amount",
+                            value=float(row["amount"]),
+                            key=f"amt_ap_{row['id']}"
+                        )
+
+                    with col2:
+                        new_purpose = st.text_input(
+                            "Edit Purpose",
+                            value=row["purpose"],
+                            key=f"pur_ap_{row['id']}"
+                        )
+
+                    with col3:
+                        new_card = st.selectbox(
+                            "Edit Card",
+                            ["Rupay", "Master", "Other"],
+                            index=["Rupay","Master","Other"].index(row["card_name"]),
+                            key=f"card_ap_{row['id']}"
+                        )
+
+                    b1, b2 = st.columns(2)
+
+                    # ---------- UPDATE ----------
+                    if b1.button("✅ Update", key=f"update_ap_{row['id']}"):
+
+                        requests.patch(
+                            SUPABASE_URL + "/rest/v1/transactions?id=eq." + str(row["id"]),
+                            headers=HEADERS,
+                            json={
+                                "amount": new_amount,
+                                "purpose": new_purpose,
+                                "card_name": new_card
+                            }
+                        )
+
+                        st.success("Transaction Updated Successfully")
+                        st.rerun()
+
+                    # ---------- DELETE ----------
+                    if b2.button("🗑 Delete", key=f"delete_ap_{row['id']}"):
+
+                        requests.delete(
+                            SUPABASE_URL + "/rest/v1/transactions?id=eq." + str(row["id"]),
+                            headers=HEADERS
+                        )
+
+                        st.error("Transaction Deleted")
+                        st.rerun()
 # ---------------- LOGOUT ----------------
 def logout():
     st.session_state.user = None
