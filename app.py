@@ -273,8 +273,8 @@ def customer_page():
             st.success("Transaction Sent For Approval")
 
     res = requests.get(
-        SUPABASE_URL + "/rest/v1/transactions?username=eq."+st.session_state.user+"&status=eq.Approved",
-        headers=HEADERS
+    SUPABASE_URL + "/rest/v1/transactions?username=eq."+st.session_state.user,
+    headers=HEADERS
     )
 
     df = pd.DataFrame(res.json())
@@ -506,4 +506,5 @@ else:
     if st.session_state.role == "admin":
         admin_page()
     else:
+
         customer_page()
