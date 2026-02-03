@@ -294,15 +294,21 @@ def customer_page():
         st.success(f"Total Bill Amount : ₹ {total}")
         st.warning(f"Bill Due Date : {due}")
         if st.button("Download Bill PDF"):
+
             approved_df = df[df["status"] == "Approved"]
 
             total = approved_df["amount"].sum()
 
-            pdf = generate_pdf(username, approved_df, due, total)
-            
+            pdf = generate_pdf(
+                st.session_state.user,   # ✅ FIXED
+                approved_df,
+                due,
+                total
+            )
 
             with open(pdf, "rb") as f:
                 st.download_button("Download PDF", f, file_name=pdf)
+
 
     else:
         st.info("No Approved Transactions Yet")
@@ -633,6 +639,4 @@ else:
     if st.session_state.role == "admin":
         admin_page()
     else:
-
         customer_page()
-
