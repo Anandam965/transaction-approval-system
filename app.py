@@ -250,7 +250,7 @@ def customer_page():
     with st.form("tx_form"):
 
         card = st.selectbox("Card Name", ["Rupay", "Master", "Other"])
-        amt = st.number_input("Amount", min_value=0.0)
+        amt = st.number_input("Amount")
         pur = st.text_area("Purpose")
 
         if st.form_submit_button("Submit Transaction"):
@@ -635,3 +635,4 @@ else:
     else:
 
         customer_page()
+
